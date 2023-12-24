@@ -33,6 +33,9 @@ paraugu.kopas <- function(dir_path) {
 #' @return A converted data frame with tree columns
 #' @export
 dataframe.wide.to.long <- function(df, x_value, y_value, repeated_columns = NULL) {
+
+  df_long <- data.frame()
+
   number_of_rows <- nrow(df)
 
   for (y in y_value) {
@@ -42,16 +45,7 @@ dataframe.wide.to.long <- function(df, x_value, y_value, repeated_columns = NULL
 
     df_long_i <- cbind(df_long_i, df[, repeated_columns])
 
-
-    if (y == y_value[1]) {
-
-      df_long <- df_long_i
-
-    } else {
-
-      df_long <- rbind(df_long, df_long_i)
-
-    }
+    df_long <- rbind(df_long, df_long_i)
 
   }
 
