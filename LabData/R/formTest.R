@@ -346,7 +346,66 @@ formTestCMODSumAll <- function (dir_path){
 }
 
 
+#' CMOD dataframe from long to wide format
+#'
+#' This function converts long format data frame to wide format.
+#' This is needed for notched prism bending test results to calculate min, max and mean values
+#' for different CMOD values. This function also calculates the min, max and mean values.
+#'
+#'
+#'
+#' @param df A long format data frame for Load - CMOD test results.
+#' @param id_kopa name of the column corresponding to the sample (sērija/kopa) in long table.
+#' @param id_paraugi name of the column containgin specimen numbers in long table.
+#' @param id_CMOD name of the column containing CMOD readings in long table.
+#' @param id_Load name of the column containing Load or residual strength values in long table.
+#' @param cmod_vals vector of predefined CMOD values. If the first value is set to 0.05,
+#' the max Load value in this range is calculated.
+#' @return A wide format data frame separating Load or residual strength values in separate columns for each specimen.
+#' @export
+cmod.long.to.wide <- function (df, id_kopa, id_paraugi, id_CMOD, id_Load, cmod_vals = seq(0, 4, 0.01)) {
+  df_wide <- data.frame()
 
+  number_cols <- length(unique(df[, id_paraugi]))
+
+  df_0 <- data.frame(matrix(nrow = length(cmod_vals), ncol = number_cols))
+  colnames(df_0) <- unique(df[, id_paraugi])
+
+
+  for (k in unique(df[, id_kopa])) {
+    df_k <- df[df[,id_kopa] == k, c(id_kopa, id_paraugi, id_CMOD, id_Load)]
+
+    df_1 <- df_0
+
+    for (p in unique(df_k[, id_paraugi])) {
+      df_kp0 <- df_k[df_k[, id_paraugi] == p, ]
+      df_kp <- df_kp0[sapply(cmod_vals, function (x){which.min(abs(df_kp0[, id_CMOD] - x))}),]
+
+      df_1[, p] <- df_kp[, id_Load]
+
+      if (cmod_vals[1] == 0.05) {
+        df_LOP <- df_kp0[df_kp0[, id_CMOD] <= 0.05, ]
+        fLOP <- max(df_LOP[, id_Load])
+        df_1[1, p] <- fLOP
+      }
+
+    }
+
+    df_2 <- cbind(df_kp[, c(id_kopa, id_CMOD)], df_1)
+    # df_2 <- df_2[-grep("NA", rownames(df_2)),]
+
+    df_wide <- rbind(df_wide, df_2)
+
+  }
+
+  colnames(df_wide)[3:ncol(df_wide)] <- paste0("p", colnames(df_wide)[3:ncol(df_wide)])
+
+  df_wide$min <- apply(df_wide[, 3:ncol(df_wide)], 1, min, na.rm = T)
+  df_wide$max <- apply(df_wide[, 3:ncol(df_wide)], 1, max, na.rm = T)
+  df_wide$mean <- rowMeans(df_wide[, 3:ncol(df_wide)], na.rm = T)
+
+  return (df_wide)
+}
 
 
 
