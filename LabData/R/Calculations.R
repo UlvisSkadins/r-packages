@@ -62,9 +62,9 @@ calc.fRi <- function (F, b, hsp, l) {
 #' @param kE coefficient considering type of aggregates.
 #' @return modulus of elasticity Ecm
 #' @export
-calc.Ecm <- function (fck, kE = 9500) {
+calc.Ecm <- function (fcm, kE = 9500) {
   # This formula is according ot EC2 2023
-  return(kE * (fck + 8)^(1/3))
+  return(kE * (fcm)^(1/3))
 }
 
 
