@@ -9,7 +9,7 @@ theme_paper <- function () {
   ggplot2::theme(text = ggplot2::element_text(size=10, family = "serif"),
                  panel.grid.minor = ggplot2::element_blank(),
                  # add border 1)
-                 panel.border = ggplot2::element_rect(colour = "black", fill = NA),
+                 panel.border = ggplot2::element_rect(colour = "dark gray", fill = NA),
                  # color background 2)
                  panel.background = ggplot2::element_rect(fill = "white"),
                  # modify grid 3)
