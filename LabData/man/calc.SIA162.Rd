@@ -18,7 +18,7 @@ calc.SIA162(F_vect, w_vect, h0, lf, n)
 \item{n}{number of cracks}
 }
 \value{
-A list of calculated values: fct, Gf
+A data frame of calculated values: w1 (mm), W1 (kNm), w2 (mm), W2 (kNm), fct (MPa), Gf (kN/m)
 }
 \description{
 This function returns tensile strength and fracture energy calculated according to

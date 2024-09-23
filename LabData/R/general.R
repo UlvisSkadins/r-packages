@@ -163,7 +163,9 @@ dataAll <- function (dir_path, funkcija) {
     }
 
     # kolonnas pievienošana ar kopas nosaukumu
-    df_i$Kopa <- gsub('\\..*', '', as.character(kopu_saraksts$faila_nos[fails]))
+    extension_text <- paste0(".",
+                             sub('.*\\.', '', as.character(kopu_saraksts$faila_nos[fails])))
+    df_i$Kopa <- sub(extension_text, '', as.character(kopu_saraksts$faila_nos[fails]))
 
     # Pievienošana kopējai tabulai (data frame)
     df <- rbind(df, df_i)

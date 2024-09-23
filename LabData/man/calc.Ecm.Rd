@@ -4,12 +4,12 @@
 \alias{calc.Ecm}
 \title{Modulus of elasticity of concrete}
 \usage{
-calc.Ecm(fck, kE = 9500)
+calc.Ecm(fcm, kE = 9500)
 }
 \arguments{
-\item{fck}{concrete compressive strength (characteristic value).}
-
 \item{kE}{coefficient considering type of aggregates.}
+
+\item{fck}{concrete compressive strength (characteristic value).}
 }
 \value{
 modulus of elasticity Ecm

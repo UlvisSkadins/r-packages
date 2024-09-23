@@ -398,11 +398,15 @@ cmod.long.to.wide <- function (df, id_kopa, id_paraugi, id_CMOD, id_Load, cmod_v
 
   }
 
-  colnames(df_wide)[3:ncol(df_wide)] <- paste0("p", colnames(df_wide)[3:ncol(df_wide)])
+  col_of_last_specimen <- ncol(df_wide)
 
-  df_wide$min <- apply(df_wide[, 3:ncol(df_wide)], 1, min, na.rm = T)
-  df_wide$max <- apply(df_wide[, 3:ncol(df_wide)], 1, max, na.rm = T)
-  df_wide$mean <- rowMeans(df_wide[, 3:ncol(df_wide)], na.rm = T)
+  colnames(df_wide)[3:col_of_last_specimen] <- paste0("p", colnames(df_wide)[3:col_of_last_specimen])
+
+  df_wide$min <- apply(df_wide[, 3:col_of_last_specimen], 1, min, na.rm = T)
+  df_wide$max <- apply(df_wide[, 3:col_of_last_specimen], 1, max, na.rm = T)
+  df_wide$mean <- rowMeans(df_wide[, 3:col_of_last_specimen], na.rm = T)
+  df_wide$char <- apply(df_wide[, 3:col_of_last_specimen], 1, calc.charact.value, Vknown = T, Vx = NA)
+
 
   return (df_wide)
 }

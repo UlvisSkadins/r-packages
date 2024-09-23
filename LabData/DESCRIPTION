@@ -9,4 +9,4 @@ Description: The package is aimed to work with raw data obtained in lab tests us
     several different machines and softwares.
 License: FALSE
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
