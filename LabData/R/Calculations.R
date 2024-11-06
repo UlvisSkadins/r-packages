@@ -206,3 +206,19 @@ calc.FRC.class <- function (fR1k, fR3k) {
   return(frc_class)
 
 }
+
+
+
+#' Time dependent factor beta_cc
+#'
+#' This function returns time dependent factor beta_cc according to EC2 (B.2).
+#'
+#'
+#' @param t time (days)
+#' @param tref reference time (days)
+#' @param sC factor according to table B.2 (EC2)
+#' @return residual strength f_Ri
+#' @export
+calc.beta_cc <- function (t, tref, sC) {
+  return(exp(sC * (1 - sqrt(tref/t)) * sqrt(28/tref)))
+}

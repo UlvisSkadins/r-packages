@@ -176,3 +176,199 @@ dataAll <- function (dir_path, funkcija) {
   colnames(df) <- gsub("\\.", "", colnames(df))
   return(df)
 }
+
+
+
+#' Combines load with other measurements based on time
+#'
+#' This function combines two data frames - one containing time and load,
+#' the other - time and another measurement (e.g. deflection, crack width).
+#' It is used to make diagrams like Load vs deflection or Load vs crack width.
+#'
+#'
+#' @param dfLoad a dataframe having two columns c("Time", "Load") in this order
+#' @param dfValue a dataframe having two columns c("Time", "Value") in this order
+#' @param time_diff time difference: dfValue$Time - dfLoad$Time
+#' @export
+combine.values.with.load <- function (dfLoad, dfValue, time_diff = 0) {
+  # gets the name of the value
+  value_name <- colnames(dfValue)[2]
+  # Make sure, the time format is correct
+  if(!inherits(dfLoad[,1], "POSIXct")){
+    stop("The first column in dfLoad must be of class POSIXct!")
+  }
+  if(!inherits(dfValue[,1], "POSIXct")){
+    stop("The first column in dfValue must be of class POSIXct!")
+  }
+
+  # Make sure, the column names are correct
+  colnames(dfLoad) <- c("Time", "Load")
+  colnames(dfValue) <- c("Time", "Value")
+  # adjust the time
+  dfValue$Time <- dfValue$Time - time_diff
+
+  # number of rows in dfLoad
+  nl <- nrow(dfLoad)
+  # new data frame for load values with time step 1 sec and the missing load values
+  # calulated by linear interpolation
+  load_approx <- with(dfLoad, data.frame(approx(Time, Load, xout = seq(Time[1], Time[nl], "sec"))))
+  # replace "x" and "y" with "Time" and "Load" as the column names
+  colnames(load_approx) <- c("Time", "Load")
+
+  # Find the rows that intersect between dfValue and load_approx
+  rows_intersect <- which(load_approx$Time %in% dfValue$Time)
+
+  # Create new data frame, where the intersect values of both dataframes are stored
+  df <- load_approx[rows_intersect,]
+  # reset row names
+  rownames(df_comb) <- NULL
+  # Adjust the start row - in both data frames it should start on the same time value
+  if (dfValue$Time[1] < df$Time[1]) {
+    n_start <- which(dfValue$Time == df$Time[1])
+  } else {
+    n_start <- 1
+  }
+  print(n_start)
+  # The end row should bet the last row of dfValue or
+  # the last row of df if there are less readings than in dfValue
+  n_end <- min(nrow(dfValue), nrow(df) + (n_start-1))
+  print(n_end)
+  print(nrow(dfValue))
+  print(nrow(df))
+  # Subset the dfValue data frame
+  dfValue <- dfValue[n_start:n_end,]
+  # reset row names
+  rownames(dfValue) <- NULL
+
+
+  print(nrow(dfValue))
+  print(nrow(df))
+
+  if (nrow(dfValue) == nrow(df)){
+    df$value <- dfValue[,2]
+    df$label <- value_name
+  } else {
+    stop("Bug in the function: number of rows do not match!")
+  }
+
+  return (df)
+
+
+}
+
+
+#' Finds peak values in measured data
+#'
+#' This function finds peak values in measured data, wich consists of time and value.
+#' This function is used in function find.and.plot.peaks - to help to find time difference
+#' caused by the time settings in different devices
+#'
+#'
+#' @param x a dataframe conteining atleast two columns (time and value)
+#' @param colTime number or name of the column containing time
+#' @param colValue number or name of the column containing measured values
+#' @param prob probability used as treshold to select the peak values
+#' @export
+find.peak <- function (x, colTime, colValue, prob = 0.05){
+  df <- x[, c(colTime, colValue)]
+  # Rename columns
+  colnames(df) <- c("Time", "Value")
+  # Calculate difference of values between rows
+  df$diff <- c(0, diff(df$Value))
+  # Calculate time difference and convert to numeric
+  df$diffT <- c(0, diff(as.numeric(df$Time)))
+  # Calculate gradient
+  df$grad <- df$diff / df$diffT
+  # Calculate difference between gradients
+  df$diffgrad <- c(0, diff(df$grad))
+
+  df <- df[-(which.min(df$diffgrad) & which.max(df$diffgrad)), ]
+
+  # Treshold of the difference of gradients used to fillter
+  diffgrad_tresh <- quantile(df$diffgrad, probs = prob, na.rm = T)
+
+  # New data frame to store peak values
+  df_peak <- subset(df, diffgrad < diffgrad_tresh)
+  df_peak <- subset(df_peak, diff != 0)
+  rownames(df_peak) <- NULL
+
+  return (df_peak)
+
+}
+
+
+#' Plots diagram with peak values
+#'
+#' This function plots a diagram consisting of two curves and loacal peak values
+#' to be compared.
+#'
+#'
+#' @param x1,x2 data frames containing measured data that needs to be compared
+#' @param peaks1,peaks2 data frames containing peak values of x1 and x2
+#' @param cols1,cols2 column names of the data frames - c("Time", "Value") excpected
+#' should be the same in x1 and peaks1 and in x2 and peaks2
+#' @export
+plot.diagram.peaks <- function (x1, x2, peaks1, peaks2, cols1 = c(1, 2), cols2 = c(1, 2)){
+  df1 <- x1[, cols1]
+  df2 <- x2[, cols2]
+  dfp1 <- peaks1[, cols1]
+  dfp2 <- peaks2[, cols2]
+  colnames(df1) <- c("Time", "Value")
+  colnames(df2) <- colnames(df1)
+  colnames(dfp1) <- colnames(df1)
+  colnames(dfp2) <- colnames(df1)
+  max1 <- max(df1$Value, na.rm = T)
+  max2 <- max(df2$Value, na.rm = T)
+
+  koef <- max1 / max2
+
+  p <- ggplot2::ggplot(df1)+
+    ggplot2::geom_path(ggplot2::aes(Time, Value/koef))+
+    ggplot2::geom_path(data = df2, ggplot2::aes(Time, Value))+
+    ggplot2::geom_point(data = dfp1, ggplot2::aes(Time, Value/koef), size = 3, colour = "red")+
+    ggplot2::geom_point(data = dfp2, ggplot2::aes(Time, Value), size = 3, colour = "blue")+
+    ggplot2::annotate("text", x = dfp1$Time, y = dfp1$Value*1.05/koef, colour = "red",
+             label = paste("(", rownames(dfp1), ")", strftime(dfp1$Time, format="%H:%M:%S")))+
+    ggplot2::annotate("text", x = dfp2$Time, y = dfp2$Value*1.05, colour = "blue",
+             label = paste("(", rownames(dfp2), ")", strftime(dfp2$Time, format="%H:%M:%S")))
+
+  return (p)
+}
+
+#' Finds peaks and plots diagram with the peak values
+#'
+#' This function finds peak values in measured data (two data frames), wich consists of time and value.
+#' Then it plots the data in a diagram, pointing out the time at peak values.
+#'
+#'
+#' @param x1,x2 data frames containing measured data that needs to be compared
+#' @param cols1,cols2 column names of the data frames - c("Time", "Value") excpected
+#' should be the same in x1 and peaks1 and in x2 and peaks2
+#' @param prob1,prob2 probability used as treshold to select the peak values
+#' @param peak1,peak2 numbers of peaks that represent the same time in the test (measuring process)
+#' @export
+find.and.plot.peaks <- function (x1, x2, cols1, cols2, prob1=0.05, prob2=0.05, peak1=1, peak2=1){
+  df1 <- x1[, cols1]
+  df2 <- x2[, cols2]
+
+  # Rename columns
+  colnames(df1) <- c("Time", "Value")
+  colnames(df2) <- c("Time", "Value")
+  cols1 <- colnames(df1)
+  cols2 <- colnames(df2)
+
+  dfp1 <- find.peak(df1, cols1[1], cols1[2], prob1)
+  dfp2 <- find.peak(df2, cols2[1], cols2[2], prob2)
+
+  p <- plot.diagram.peaks(df1, df2, dfp1, dfp2, cols1, cols2)
+
+  time1 <- dfp1$Time[peak1]
+  time2 <- dfp2$Time[peak2]
+
+  time_diff <- as.numeric(time1 - time2,units="secs")
+
+  print(paste("Time 1 is:", time1, "; time 2 is:", time2, "; time difference is:", time_diff, "sec"))
+
+  return (p)
+
+}
