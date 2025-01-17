@@ -195,14 +195,16 @@ matestResultEmod <- function (file) {
   row_start <- 2
   row_end <- grep("CALCULATION", df_full[,1])[1] - 1
 
+
   df_res <- strcapture("(.*): (.*)", as.character(df_full[row_start:row_end, 1]),
                                       data.frame(Param = "", Value = ""))
+
 
 
   selected <- c("Test",
                 "Test date",
                 "Test time",
-                "Start load",
+                "Maximum load",
                 "Axial gage length",
                 "Lateral gage length",
                 "Area",
@@ -212,8 +214,9 @@ matestResultEmod <- function (file) {
 
 
 
-
   df_res <- df_res[grep(paste(selected, collapse = "|"), df_res$Param), ]
+
+
 
 
 
@@ -229,6 +232,10 @@ matestResultEmod <- function (file) {
 
   df <- data.frame(Specimen = df_res[1,2],
                    TestTime = time_tested,
+                   Area = as.numeric(sub(" .*", "",
+                                         df_res[grep("Area", df_res$Param),2])),
+                   LoadMax = as.numeric(sub(" .*", "",
+                                            df_res[grep("Maximum load", df_res$Param),2])),
                    gageLength = as.numeric(sub(" .*", "",
                                                df_res[grep("Axial gage length", df_res$Param),2])),
                    Emod = as.numeric(sub(" .*", "",
@@ -241,6 +248,78 @@ matestResultEmod <- function (file) {
 
 }
 
+
+
+
+
+#' Calculate E modulus from Matest diagrams
+#'
+#' This function returns data frame containing E modulus and Poisson's ratio,
+#' taking form Matest load vs strain diagrams.
+#' It assumes that each specimen is in a separate file and all the files ar in one folder.
+#'
+#'
+#' @param folder A folder path conteining txt files (E modulus) exported from Matest machine.
+#' @param load_levels a vector consisting of two values defining load levels at which E modulus is calculated.
+#' @return A data frame containing test results.
+#' @export
+matestCalcEmod <- function (folder, load_levels) {
+  # Dataframe to store E modulus calculated from diagrams
+  df_Emod <- data.frame()
+
+  # Load levels to calculate E modulus
+  load_levels <- c(35, 327)
+
+  # Loop through files (each file is one specimen)
+  for (f in list.files(folder)) {
+    # full file path
+    file <- paste0(folder, "/", f)
+    # data frame containig data for load-strain diagrams
+    df01 <- matestDataFrameEmod(file)
+
+    # cross-section area, mm2
+    area <- matestResultEmod(file)[, "Area"]
+
+    # labels of the specimen
+    Kopa <- sub("\\.txt", "", f)
+
+    label <- sub(" .*", "",
+                 gsub("-", "_", Kopa))
+
+
+    # find rows in current data frame (diagram) corresponding the given load levels
+    p1 <- which.min(abs(df01$Load - load_levels[1]))
+    p2 <- which.min(abs(df01$Load - load_levels[2]))
+
+    # select corresponding axial strains
+    eps <- c(df01$Axial[p1], df01$Axial[p2])
+    # select corresponding lateral strains
+    epsh <- c(df01$Lateral[p1], df01$Lateral[p2])
+
+    # select corresponding loads (exact values from the data)
+    load <- c(df01$Load[p1], df01$Load[p2])
+
+    # Calculate stresses from loads
+    sig <- load * 1000 / area
+
+    # Calculate axial E modulus
+    Emod <- diff(sig) / (diff(eps)/10^3)
+    # Calculate lateral E modulus
+    Emodh <- diff(sig) / (diff(epsh)/10^3)
+    # Poisson's ratio
+    mu <- Emod / Emodh
+
+    # Store the results in a data frame
+    df_Ei <- data.frame(Kopa = Kopa, label = label, Emod = Emod, Poisson = mu)
+
+    # Combine current results with previous
+    df_Emod <- rbind(df_Emod, df_Ei)
+
+
+  }
+
+  return (df_Emod)
+}
 
 
 

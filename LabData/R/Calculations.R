@@ -51,7 +51,7 @@ calc.concr.prop.EC2 <- function (x, conv_factor = 1){
 calc.charact.value <- function (x, Vknown = F, Vx = NA){
   # Data from EN1990, Table D.1
   n <- c(1, 2, 3, 4, 5, 6, 8, 10, 20, 30, Inf)
-  kn_known <- c(2.31, 2.01, 1.89, 1.83, 1.77, 1.74, 1.72, 1.68, 1.67, 1.64, 1.64)
+  kn_known <- c(2.31, 2.01, 1.89, 1.83, 1.80, 1.77, 1.74, 1.72, 1.68, 1.67, 1.64)
   kn_unknown <- c(NA, NA, 3.37, 2.63, 2.33, 2.18, 2.0, 1.92, 1.76, 1.73, 1.64)
 
   # Sample size - number of specimens
@@ -173,10 +173,25 @@ calc.Ecm <- function (fcm, kE = 9500) {
 }
 
 
+#' Modulus of elasticity of concrete according to Model Code 2020
+#'
+#' This function calculates modulus of elasticity of concrete according to Model Code 2020 (14.7-1).
+#'
+#'
+#' @param fcm concrete compressive strength (mean value).
+#' @param alE coefficient considering type of aggregates. Quartzite aggregates = 1.0, other 0.7...1.2
+#' @return modulus of elasticity Ecm
+#' @export
+calc.Ecm.MC2020 <- function (fcm, alE = 1) {
+  # This formula is according ot EC2 2023
+  return(21500 * alE * (fcm/10)^(1/3))
+}
+
+
 
 #' FRC post-cracking strength class
 #'
-#' Returns FRC post-cracking strength class according to Model Code 2010.
+#' Returns FRC post-cracking strength class according to Model Code 2020.
 #'
 #'
 #' @param fR1k residual strengths significant for serviceability.
@@ -185,10 +200,13 @@ calc.Ecm <- function (fcm, kE = 9500) {
 #' @export
 calc.FRC.class <- function (fR1k, fR3k) {
   # Strength intervals
-  strenght_intervals <- c(seq(1,3,0.5), seq(4,20,1))
+  # Model Code 2010:
+  # strenght_intervals <- c(seq(1,3,0.5), seq(4,20,1))
+  # Model Code 2020:
+  strenght_intervals <- c(seq(1, 5, 0.5), seq(6, 8, 1), seq(10, 14, 2))
 
   # Strength ratios
-  ratios <- seq(0.5, 1.5, 0.2)
+  ratios <- c(seq(0.5, 1.3, 0.2), Inf)
   # Number of the items in the ratios vector
   number_of_rartios <- length(ratios)
   # Corresponding vector containg letters
@@ -206,6 +224,108 @@ calc.FRC.class <- function (fR1k, fR3k) {
   return(frc_class)
 
 }
+
+
+
+#' FRC material model in tension
+#'
+#' Returns FRC post-cracking strength class according to Model Code 2020.
+#'
+#'
+#' @param fR1k residual strengths significant for serviceability.
+#' @param fR3k residual strengths significant for ultimate conditions.
+#' @return ...
+#' @export
+calc.FRC.mat.model.LoAIII.1 <- function (fcm, fct=NA, fR1k, fR3k, wu=2.5, al0=0.58/2, Act=1, lcs=125) {
+
+  Dfc <- 8
+
+  fck <- fcm - Dfc
+
+  # Tensile strength
+  fctm <- 1.8 * log(fck) - 3.1
+  # fctk.min <- 0.7 * fctm
+  # fctk.max <- 1.3 * fctm
+
+  # Tensile strength
+  if (is.na(fct)) {
+    fct <- fctm
+  }
+
+  # Modulus of elasticity
+  Ecm <- calc.Ecm.MC2020(fcm)
+
+  # Fracture energy [N/mm]
+  GF <- 85 * fck^0.15 / 1000
+
+
+
+
+  CMOD1 <- 0.5
+  CMOD3 <- 2.5
+
+  fFts <- 0.37 * fR1k
+
+  fFtu <- fFts - (wu - CMOD1) / (CMOD3 - CMOD1) * (fFts - 0.57*fR3k + 0.26*fR1k)
+  fFtu <- max(fFtu, 0)
+
+
+  # Orientation factor k0
+  k0 <- al0 / 0.58
+
+
+  fFts <- k0 * fFts
+  fFtu <- k0 * fFtu
+
+
+  # Coeficient kG
+  # kG <- 1 + 0.5 * Act
+
+
+  Ec <- Ecm
+
+  eps_P <- fctm / Ecm
+  eps_Q <- GF / (fctm * lcs) + (eps_P - 0.8 * fctm / Ec)
+  eps_SLS <- CMOD1 / lcs
+  eps_ULS <- min(wu / lcs, 0.02, 2.5 / lcs)
+
+
+  # Coeffients of the bi-linear material model
+  # slope of the first and socond branches
+  b1 <- -0.8 * fct / (eps_Q - eps_P)
+  b2 <- (fFtu - fFts) / (eps_ULS - eps_SLS)
+  # intersept of the first and second branches
+  a1 <- fct + b1 * eps_P
+  a2 <- fFts + b2 * eps_SLS
+
+  # Strain eps_C
+  eps_C <- (a2 - a1)/(b1 - b2)
+
+  sig_C <- a1 + b1 * eps_C
+  sig_C2 <- a2 + b2 * eps_C
+
+
+
+
+  if (fFts <= 0.8 * fctm) {
+
+    eps <- c(0, eps_P, eps_C, eps_SLS, eps_ULS, eps_ULS)
+    sig <- c(0, fct, sig_C, fFts, fFtu, 0)
+
+  } else {
+    print("funkcija jāpapildina gadījumiem, kad fFts > 0.8fct")
+  }
+
+  df <- data.frame(Point = c("O", LETTERS[2:6]),
+                   sig = sig,
+                   eps = eps
+  )
+
+  return (df)
+
+}
+
+
 
 
 

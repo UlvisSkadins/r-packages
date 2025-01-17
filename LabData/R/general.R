@@ -174,6 +174,7 @@ dataAll <- function (dir_path, funkcija) {
 
   colnames(df) <- gsub(" ", "_", colnames(df))
   colnames(df) <- gsub("\\.", "", colnames(df))
+  rownames(df) <- NULL
   return(df)
 }
 
@@ -189,6 +190,7 @@ dataAll <- function (dir_path, funkcija) {
 #' @param dfLoad a dataframe having two columns c("Time", "Load") in this order
 #' @param dfValue a dataframe having two columns c("Time", "Value") in this order
 #' @param time_diff time difference: dfValue$Time - dfLoad$Time
+#' @return data frame
 #' @export
 combine.values.with.load <- function (dfLoad, dfValue, time_diff = 0) {
   # gets the name of the value
@@ -221,28 +223,28 @@ combine.values.with.load <- function (dfLoad, dfValue, time_diff = 0) {
   # Create new data frame, where the intersect values of both dataframes are stored
   df <- load_approx[rows_intersect,]
   # reset row names
-  rownames(df_comb) <- NULL
+  rownames(df) <- NULL
   # Adjust the start row - in both data frames it should start on the same time value
   if (dfValue$Time[1] < df$Time[1]) {
     n_start <- which(dfValue$Time == df$Time[1])
   } else {
     n_start <- 1
   }
-  print(n_start)
+  # print(n_start)
   # The end row should bet the last row of dfValue or
   # the last row of df if there are less readings than in dfValue
   n_end <- min(nrow(dfValue), nrow(df) + (n_start-1))
-  print(n_end)
-  print(nrow(dfValue))
-  print(nrow(df))
+  # print(n_end)
+  # print(nrow(dfValue))
+  # print(nrow(df))
   # Subset the dfValue data frame
   dfValue <- dfValue[n_start:n_end,]
   # reset row names
   rownames(dfValue) <- NULL
 
 
-  print(nrow(dfValue))
-  print(nrow(df))
+  # print(nrow(dfValue))
+  # print(nrow(df))
 
   if (nrow(dfValue) == nrow(df)){
     df$value <- dfValue[,2]
@@ -255,6 +257,87 @@ combine.values.with.load <- function (dfLoad, dfValue, time_diff = 0) {
 
 
 }
+
+
+#' Combines two measured values based on time
+#'
+#' This function combines two data frames - both containing time and
+#' a measurement (e.g. deflection, crack width, load, etc.).
+#' It is used to make diagrams like Load vs deflection or Load vs crack width.
+#'
+#'
+#' @param dfRef a dataframe having two columns c("Time", "RefValue") in this order
+#' @param dfValue a dataframe having two columns c("Time", "Value") in this order
+#' @param time_diff time difference: dfValue$Time - dfRef$Time
+#' @return data frame with four columns: Time, Reference Value, Measured value, and Label
+#' @export
+combine.two.df.time <- function (dfRef, dfValue, time_diff = 0) {
+  # gets the name of the value
+  value_name <- colnames(dfValue)[2]
+  # Make sure, the time format is correct
+  if(!inherits(dfRef[,1], "POSIXct")){
+    stop("The first column in dfLoad must be of class POSIXct!")
+  }
+  if(!inherits(dfValue[,1], "POSIXct")){
+    stop("The first column in dfValue must be of class POSIXct!")
+  }
+
+  # Make sure, the column names are correct
+  colnames(dfRef) <- c("Time", "RefValue")
+  colnames(dfValue) <- c("Time", "Value")
+  # adjust the time
+  dfValue$Time <- dfValue$Time + time_diff
+
+  # number of rows in dfLoad
+  nl <- nrow(dfRef)
+  time_start <- as.POSIXct(dfRef$Time[1], format = "%Y-%m-%d %H:%M:%S")
+  time_end <- as.POSIXct(dfRef$Time[nl], format = "%Y-%m-%d %H:%M:%S")
+
+  # new data frame for reference values with time step 1 sec and the missing reference values
+  # calulated by linear interpolation
+  reference_approx <- with(dfRef, data.frame(approx(Time, RefValue, xout = seq(time_start, time_end, "sec"))))
+  # replace "x" and "y" with "Time" and "RefValue" as the column names
+  colnames(reference_approx) <- c("Time", "RefValue")
+
+  # Find the rows that intersect between dfValue and load_approx
+  rows_intersect <- which(reference_approx$Time %in% dfValue$Time)
+
+  # Create new data frame, where the intersect values of both dataframes are stored
+  df <- reference_approx[rows_intersect,]
+  # reset row names
+  rownames(df) <- NULL
+
+  # Adjust the start row - in both data frames it should start on the same time value
+  if (dfValue$Time[1] < df$Time[1]) {
+    n_start <- which(dfValue$Time == df$Time[1])
+  } else {
+    n_start <- 1
+  }
+  # The end row should bet the last row of dfValue or
+  # the last row of df if there are less readings than in dfValue
+  n_end <- min(nrow(dfValue), nrow(df) + (n_start-1))
+
+  # Subset the dfValue data frame
+  dfValue <- dfValue[n_start:n_end,]
+  # reset row names
+  rownames(dfValue) <- NULL
+
+
+  # print(nrow(dfValue))
+  # print(nrow(df))
+
+  if (nrow(dfValue) == nrow(df)){
+    df$value <- dfValue[,2]
+    df$label <- value_name
+  } else {
+    stop("Bug in the function: number of rows do not match!")
+  }
+
+  return (df)
+
+
+}
+
 
 
 #' Finds peak values in measured data
@@ -274,13 +357,13 @@ find.peak <- function (x, colTime, colValue, prob = 0.05){
   # Rename columns
   colnames(df) <- c("Time", "Value")
   # Calculate difference of values between rows
-  df$diff <- c(0, diff(df$Value))
+  df$diff <- c(diff(df$Value), 0)
   # Calculate time difference and convert to numeric
-  df$diffT <- c(0, diff(as.numeric(df$Time)))
+  df$diffT <- c(diff(as.numeric(df$Time)), 0)
   # Calculate gradient
   df$grad <- df$diff / df$diffT
   # Calculate difference between gradients
-  df$diffgrad <- c(0, diff(df$grad))
+  df$diffgrad <- c(diff(df$grad), 0)
 
   df <- df[-(which.min(df$diffgrad) & which.max(df$diffgrad)), ]
 

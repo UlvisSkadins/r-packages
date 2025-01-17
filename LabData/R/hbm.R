@@ -54,7 +54,8 @@ HBMDataFrame <- function (file) {
 
   # Kanālu informācijas noņemšana
   # Skaitlisko datu sākuma rinda
-  row_data_1st <- which(hbm[,1] == 0)
+  # row_data_1st <- which(hbm[,1] == 0)
+  suppressWarnings(row_data_1st <- which(as.numeric(sub(",", ".",hbm[,1])) == 0))
   hbm <- hbm[row_data_1st:nrow(hbm),]
 
   # Nosaka faktisko kolonnu skaitu, pamatojoties uz kolonnu nosaukumu vektora garumu

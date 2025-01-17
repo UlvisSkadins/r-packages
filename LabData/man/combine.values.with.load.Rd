@@ -13,6 +13,9 @@ combine.values.with.load(dfLoad, dfValue, time_diff = 0)
 
 \item{time_diff}{time difference: dfValue$Time - dfLoad$Time}
 }
+\value{
+data frame
+}
 \description{
 This function combines two data frames - one containing time and load,
 the other - time and another measurement (e.g. deflection, crack width).

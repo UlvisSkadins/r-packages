@@ -346,6 +346,74 @@ formTestCMODSumAll <- function (dir_path){
 }
 
 
+
+#' Form+Test prism bending test results
+#'
+#' This function returns a data frame from a text file exported from Proteus software.
+#' This function is similar to formTestCMODSumAll, but is used in plain concrete
+#' flexural tensile tests according to EN 12390-5:2009
+#'
+#'
+#'
+#' @param file A file name of a text file where the exported data are saved.
+#' @return A data frame containing summary of the results of flexural tensile tests.
+#' @export
+formTestFlexSumarry <- function (file) {
+  # Read the file
+  data <- read.table(file, sep=';', stringsAsFactors=FALSE, fill = TRUE)
+#   converts to data frame
+  data <- as.data.frame(data)
+
+  # Kopējie dati
+  # rinda, kurā ir kopas nosaukums un datumi
+  row_1 <- 2
+  # lielumi
+  kopa <- as.character(data[row_1, 1])
+  izgat_datums <- as.POSIXct(paste(as.character(data[row_1, 2]), as.character(data[row_1, 3])),
+                             format = "%d.%m.%Y %H:%M")
+  test_datums <- as.POSIXct(paste(as.character(data[row_1, 4]), as.character(data[row_1, 5])),
+                             format = "%d.%m.%Y %H:%M")
+
+
+
+  ## Atlasa rindas, kurās sākās jauni paraugi (tabulas):
+  par_nos_indeksi <- which(data[, 1]=='Index')-1
+
+  # Izveido datubāzi, kurā ir tikai kopsavilkuma rindas
+  res_data <- data[par_nos_indeksi,]
+
+  # Konvertē tekstu uz skaitļiem
+  # Izņemot parauga nosaukuma kolonnu
+  cols <- 2:length(colnames(res_data))
+  res_data[, cols] <- apply(res_data[, cols], 2, function (x) as.numeric(as.character(x)))
+
+
+  # Piešķir datubāzei kolonnu nosaukumus
+  col_nos <- c("Specimen", "h", "b", "L", "Mass", "Density", "Fmax", "Strength")
+  colnames(res_data) <- col_nos
+
+  # Pievieno papildus kolonnas
+  res_data$Kopa <- kopa
+  res_data$Time_prod <- izgat_datums
+  res_data$Time_test <- test_datums
+  res_data$Age <- round(test_datums - izgat_datums, 1)
+
+  # Atlasa tikai tās kolonnas, kuras tiks izmantotas galējā datubāzē
+  selected_columns <- c("Kopa", "Time_prod", "Time_test", "Age", "Specimen",
+                        "h", "b", "L", "Mass", "Density", "Fmax", "Strength")
+
+  res_data <- res_data[, selected_columns]
+
+
+  return (res_data)
+
+
+}
+
+
+
+
+
 #' CMOD dataframe from long to wide format
 #'
 #' This function converts long format data frame to wide format.
@@ -450,7 +518,10 @@ formTestSIASumarry <- function (file) {
   test_datumi <- df[match(paraugi, df$Paraugi), "Time"]
 
 
+
   res_data <- data[par_nos_indeksi,]
+
+
 
   # Konvertē tekstu uz skaitļiem
   # Izņemot parauga nosaukuma kolonnu
@@ -465,8 +536,10 @@ formTestSIASumarry <- function (file) {
   res_data$Time_prod <- izgat_datums
   res_data$Time_test <- res_data$Time_prod
 
+  i <- 1
   for (specimen in unique(res_data$Paraugs)){
-    res_data[which(res_data$Paraugs == specimen), "Time_test"] <- test_datumi[as.numeric(specimen)]
+    res_data[which(res_data$Paraugs == specimen), "Time_test"] <- test_datumi[as.numeric(i)]
+    i <- i + 1
   }
 
   res_data$Age <- round(res_data$Time_test - res_data$Time_prod, 1)
@@ -475,6 +548,85 @@ formTestSIASumarry <- function (file) {
                         "Pr", "P", "D1", "Dw", "Wr", "W", "RC")
 
   res_data <- res_data[, selected_columns]
+
+  rownames(res_data) <- NULL
+
+
+  return (res_data)
+
+
+}
+
+
+#' Form+Test ASTM test results
+#'
+#' This function returns a data frame from a text file exported from Proteus software.
+#' This function is similar to formTestCMODSumarry, but takes the summary data in case of ASTM round panel tests.
+#' The data are in the same line with specimen number.
+#'
+#'
+#'
+#' @param file A file name of a text file where the exported data are saved.
+#' @return A data frame containing summary of the results of ASTM round panel tests.
+#' @export
+formTestASTMSumarry <- function (file) {
+  # Read the file
+  data <- read.table(file, sep=';', stringsAsFactors=FALSE, fill = TRUE)
+#   converts to data frame
+  data <- as.data.frame(data)
+
+  # Kopējie dati
+  # rinda, kurā ir kopas nosaukums un datumi
+  row_1 <- 2
+  # lielumi
+  kopa <- as.character(data[row_1, 1])
+  izgat_datums <- as.Date(as.POSIXct(paste(as.character(data[row_1, 2]), as.character(data[row_1, 3])),
+                             format = "%d.%m.%Y %H:%M"))
+  # test_datums <- as.Date(as.POSIXct(paste(as.character(data[row_1, 4]), as.character(data[row_1, 5])),
+  #                            format = "%d.%m.%Y %H:%M"))
+
+
+
+  ## Atlasa rindas, kurās sākās jauni paraugi:
+  par_nos_indeksi <- which(data[, 1]=='Index')-1
+  # Datumu indeksi
+  df <- formTestDataFrame(file)
+  paraugi <- unique(df$Paraugi)
+  test_datumi <- df[match(paraugi, df$Paraugi), "Time"]
+
+
+
+  res_data <- data[par_nos_indeksi,]
+
+
+
+  # Konvertē tekstu uz skaitļiem
+  # Izņemot parauga nosaukuma kolonnu
+  cols <- 2:length(colnames(res_data))
+  res_data[, cols] <- apply(res_data[, cols], 2, function (x) as.numeric(as.character(x)))
+
+  col_nos <- c("Paraugs", "d", "t", "V4", "V5", "V6", "Pr", "P", "D1", "Dw",
+               "Wr", "W", "RC")
+  colnames(res_data) <- col_nos
+
+  res_data$Kopa <- kopa
+  res_data$Time_prod <- izgat_datums
+  res_data$Time_test <- res_data$Time_prod
+
+  i <- 1
+  for (specimen in unique(res_data$Paraugs)){
+    res_data[which(res_data$Paraugs == specimen), "Time_test"] <- test_datumi[as.numeric(i)]
+    i <- i + 1
+  }
+
+  res_data$Age <- round(res_data$Time_test - res_data$Time_prod, 1)
+
+  selected_columns <- c("Kopa", "Time_prod", "Time_test", "Age", "Paraugs", "d", "t",
+                        "Pr", "P", "D1", "Dw", "Wr", "W", "RC")
+
+  res_data <- res_data[, selected_columns]
+
+  rownames(res_data) <- NULL
 
 
   return (res_data)
