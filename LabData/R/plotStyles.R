@@ -21,7 +21,9 @@ theme_paper <- function () {
                  # legend.position = c(0.6, 0.15),
                  # legend.title = element_blank(),
                  legend.title = ggplot2::element_text(margin = ggplot2::margin(b = 5, unit = "pt")),
-                 legend.spacing.y = ggplot2::unit(-2, "pt"),
+                 legend.spacing.y = ggplot2::unit(0.2, "mm"),
+                 legend.key.height = ggplot2::unit(3, "mm"),
+                 legend.margin = ggplot2::margin(0, 0, 0, 0),
                  strip.text = ggplot2::element_text(color = "black"),
                  strip.background = ggplot2::element_blank()
   )

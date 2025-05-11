@@ -473,6 +473,7 @@ cmod.long.to.wide <- function (df, id_kopa, id_paraugi, id_CMOD, id_Load, cmod_v
   df_wide$min <- apply(df_wide[, 3:col_of_last_specimen], 1, min, na.rm = T)
   df_wide$max <- apply(df_wide[, 3:col_of_last_specimen], 1, max, na.rm = T)
   df_wide$mean <- rowMeans(df_wide[, 3:col_of_last_specimen], na.rm = T)
+  df_wide$sd <- apply(df_wide[, 3:col_of_last_specimen], 1, sd, na.rm = T)
   df_wide$char <- apply(df_wide[, 3:col_of_last_specimen], 1, calc.charact.value, Vknown = T, Vx = NA)
 
 

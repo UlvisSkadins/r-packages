@@ -74,11 +74,11 @@ matestDataFrameEmod <- function (file) {
 
 
   # Subsetting data frame to include only the necessary data
-  df <- df_full[row_start:row_end, 1:5]
+  df <- df_full[row_start:row_end, ]
 
   # Column names
   col_names <- gsub("\\.", "",
-                  gsub(" .*", "", df_full[row_header, 1:5]))
+                  gsub(" .*", "", df_full[row_header, ]))
 
   colnames(df) <- col_names
 
@@ -122,13 +122,18 @@ matestResult <- function (file) {
                      fill = T)
 
 
+  # Izveido tabulu ar failā definētajiem parametriem
+  # pamateru sākuma rinda
   row_start <- 2
+  # parametru beigu rinda
   row_end <- grep("GRAPH", df_full[,1]) - 1
 
+  # Izveido tabulu ar divām kolonnām: parametra nosaukums un vērtība
   df_res <- strcapture("(.*): (.*)", as.character(df_full[row_start:row_end, 1]),
                                       data.frame(Param = "", Value = ""))
 
 
+  # Atlasītie parametri
   selected <- c("Test",
                 "Test date",
                 "Test time",
@@ -141,18 +146,21 @@ matestResult <- function (file) {
 
 
 
-
+  # Izfiltrē parametru tabulu, lai tā saturētu tikai atlasītos parametrus
   df_res <- df_res[grep(paste(selected, collapse = "|"), df_res$Param), ]
 
 
 
+  # Testa datums un laiks
   test_date <- df_res[grep("Test date", df_res$Param), 2]
   test_time <- df_res[grep("Test time", df_res$Param), 2][1]
 
 
+  # Apvieno datumu un laiku un pārvērš par pilnu laika informāciju jeb vērtību
   time_tested <- lubridate::parse_date_time(paste(test_date, test_time),
-                                            "%d/%m/%Y %I:%M:%S %p", tz = "Europe/Riga")
+                                            "%m/%d/%Y %I:%M:%S %p", tz = "Europe/Riga")
 
+  # Izveido rezultātu tabulu, kurā ir galvenie rezultāti
   df <- data.frame(Specimen = df_res[1,2],
                    TestTime = time_tested,
                    Area = as.numeric(sub(" .*", "",df_res[grep("Area", df_res$Param),2])),
@@ -179,7 +187,6 @@ matestResult <- function (file) {
 #' @param file A file name of a text file where the test data are saved.
 #' @return A data frame containing test results.
 #' @export
-
 matestResultEmod <- function (file) {
 
   df_full <- read.table(text = chartr("[]", "''",
@@ -227,7 +234,7 @@ matestResultEmod <- function (file) {
 
 
   time_tested <- lubridate::parse_date_time(paste(test_date, test_time),
-                                            "%d/%m/%Y %I:%M:%S %p", tz = "Europe/Riga")
+                                            "%m/%d/%Y %I:%M:%S %p", tz = "Europe/Riga")
 
 
   df <- data.frame(Specimen = df_res[1,2],
@@ -249,6 +256,66 @@ matestResultEmod <- function (file) {
 }
 
 
+#' Matest compression machine test parameters
+#'
+#' This function returns parameters of a tested specimen such as:
+#'"Test",
+#'"Test date",
+#'"Test time",
+#'"Maximum load",
+#'"Axial gage length",
+#'"Lateral gage length",
+#'"Area",
+#'"Axial youngs modulus",
+#'"Poissons ratio"
+#'
+#' @param file A file name of a text file where the test data are saved.
+#' @return A data frame containing test parameters.
+#' @export
+matestTestParameters <- function (file) {
+
+  df_full <- read.table(text = chartr("[]", "''",
+                                   gsub("'s", "s",
+                                        readLines(file, skipNul = T))),
+                     fileEncoding = "UTF-16LE",
+                     sep = "\t",
+                     col.names = 1:7,
+                     header = F,
+                     fill = T)
+
+
+  row_start <- 2
+  row_end <- grep("CALCULATION", df_full[,1])[1] - 1
+
+
+  df_res <- strcapture("(.*): (.*)", as.character(df_full[row_start:row_end, 1]),
+                                      data.frame(Param = "", Value = ""))
+
+
+  #
+  # selected <- c("Test",
+  #               "Test date",
+  #               "Test time",
+  #               "Maximum load",
+  #               "Axial gage length",
+  #               "Lateral gage length",
+  #               "Area",
+  #               "Axial youngs modulus",
+  #               "Poissons ratio"
+  # )
+  #
+  #
+  #
+  # df_res <- df_res[grep(paste(selected, collapse = "|"), df_res$Param), ]
+
+
+
+  return (df_res)
+
+}
+
+
+
 
 
 
@@ -263,12 +330,12 @@ matestResultEmod <- function (file) {
 #' @param load_levels a vector consisting of two values defining load levels at which E modulus is calculated.
 #' @return A data frame containing test results.
 #' @export
-matestCalcEmod <- function (folder, load_levels) {
+matestCalcEmod <- function (folder, load_levels=c(35, 327)) {
   # Dataframe to store E modulus calculated from diagrams
   df_Emod <- data.frame()
 
   # Load levels to calculate E modulus
-  load_levels <- c(35, 327)
+  # load_levels
 
   # Loop through files (each file is one specimen)
   for (f in list.files(folder)) {
@@ -326,9 +393,10 @@ matestCalcEmod <- function (folder, load_levels) {
 #' Matest compression machine test results
 #'
 #' This function function matestResult to all the files in a directory and all the subdirectories.
+#' This function is obsolete. Use dataAll(dir, matestResult) instead.
 #'
 #'
-#' @param file A file name of a text file where the test data are saved.
+#' @param dir A file name of a text file where the test data are saved.
 #' @return A data frame containing test results - raw data.
 #' @export
 matestResultAll <- function (dir) {

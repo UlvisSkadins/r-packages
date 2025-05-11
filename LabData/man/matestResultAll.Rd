@@ -7,11 +7,12 @@
 matestResultAll(dir)
 }
 \arguments{
-\item{file}{A file name of a text file where the test data are saved.}
+\item{dir}{A file name of a text file where the test data are saved.}
 }
 \value{
 A data frame containing test results - raw data.
 }
 \description{
 This function function matestResult to all the files in a directory and all the subdirectories.
+This function is obsolete. Use dataAll(dir, matestResult) instead.
 }

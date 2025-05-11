@@ -4,7 +4,7 @@
 \alias{matestCalcEmod}
 \title{Calculate E modulus from Matest diagrams}
 \usage{
-matestCalcEmod(folder, load_levels)
+matestCalcEmod(folder, load_levels = c(35, 327))
 }
 \arguments{
 \item{folder}{A folder path conteining txt files (E modulus) exported from Matest machine.}
